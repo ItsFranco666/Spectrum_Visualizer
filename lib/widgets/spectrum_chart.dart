@@ -89,8 +89,9 @@ class SpectrumLineChart extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade900,
+        color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Padding(
         padding: EdgeInsets.all(16.0),
@@ -101,24 +102,24 @@ class SpectrumLineChart extends StatelessWidget {
               drawHorizontalLine: true,
               drawVerticalLine: true,
               horizontalInterval: 10,
-              verticalInterval: (data.maxFrequency - data.minFrequency) / 6,
+              verticalInterval: (data.maxFrequency - data.minFrequency) / 8,
               getDrawingHorizontalLine: (value) {
                 if ((value - noiseLevel).abs() < 2) {
                   return FlLine(
-                    color: Colors.red.shade400,
-                    strokeWidth: 1.5,
+                    color: Colors.red.shade600,
+                    strokeWidth: 2,
                     dashArray: [8, 4],
                   );
                 }
                 return FlLine(
-                  color: Colors.grey.shade700,
-                  strokeWidth: 0.5,
+                  color: Colors.grey.shade400,
+                  strokeWidth: 0.8,
                 );
               },
               getDrawingVerticalLine: (value) {
                 return FlLine(
-                  color: Colors.grey.shade700,
-                  strokeWidth: 0.5,
+                  color: Colors.grey.shade400,
+                  strokeWidth: 0.8,
                 );
               },
             ),
@@ -128,15 +129,16 @@ class SpectrumLineChart extends StatelessWidget {
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 35,
-                  interval: (data.maxFrequency - data.minFrequency) / 5,
+                  interval: (data.maxFrequency - data.minFrequency) / 6,
                   getTitlesWidget: (value, meta) {
                     return Padding(
                       padding: EdgeInsets.only(top: 8.0),
                       child: Text(
-                        '${value.toStringAsFixed(0)} MHz',
+                        '${value.toStringAsFixed(0)}',
                         style: TextStyle(
-                          color: Colors.grey.shade300,
-                          fontSize: 10,
+                          color: Colors.grey.shade700,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     );
@@ -146,14 +148,15 @@ class SpectrumLineChart extends StatelessWidget {
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 50,
+                  reservedSize: 45,
                   interval: 10,
                   getTitlesWidget: (value, meta) {
                     return Text(
                       '${value.toStringAsFixed(0)}',
                       style: TextStyle(
-                        color: Colors.grey.shade300,
-                        fontSize: 10,
+                        color: Colors.grey.shade700,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                       ),
                     );
                   },
@@ -166,20 +169,20 @@ class SpectrumLineChart extends StatelessWidget {
               show: true,
               border: Border.all(
                 color: Colors.grey.shade600,
-                width: 1,
+                width: 1.5,
               ),
             ),
-            minX: data.minFrequency - 10,
-            maxX: data.maxFrequency + 10,
+            minX: data.minFrequency - 20,
+            maxX: data.maxFrequency + 20,
             minY: minPower,
             maxY: maxPower + 10,
             lineBarsData: [
               LineChartBarData(
                 spots: spots,
                 isCurved: true,
-                curveSmoothness: 0.3,
-                color: Colors.cyan.shade400,
-                barWidth: 2,
+                curveSmoothness: 0.2,
+                color: Colors.blue.shade600,
+                barWidth: 2.5,
                 isStrokeCapRound: true,
                 dotData: FlDotData(show: false),
                 belowBarData: BarAreaData(
@@ -188,28 +191,68 @@ class SpectrumLineChart extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.cyan.shade400.withOpacity(0.6),
-                      Colors.cyan.shade400.withOpacity(0.3),
-                      Colors.cyan.shade400.withOpacity(0.1),
-                      Colors.transparent,
+                      Colors.blue.shade400.withOpacity(0.7),
+                      Colors.blue.shade300.withOpacity(0.5),
+                      Colors.blue.shade200.withOpacity(0.3),
+                      Colors.blue.shade100.withOpacity(0.1),
                     ],
-                    stops: [0.0, 0.3, 0.7, 1.0],
+                    stops: [0.0, 0.4, 0.7, 1.0],
                   ),
                 ),
               ),
               // Línea de ruido térmico
               LineChartBarData(
                 spots: [
-                  FlSpot(data.minFrequency - 10, noiseLevel),
-                  FlSpot(data.maxFrequency + 10, noiseLevel),
+                  FlSpot(data.minFrequency - 20, noiseLevel),
+                  FlSpot(data.maxFrequency + 20, noiseLevel),
                 ],
                 isCurved: false,
-                color: Colors.red.shade400,
-                barWidth: 1.5,
+                color: Colors.red.shade600,
+                barWidth: 2,
                 dashArray: [8, 4],
                 dotData: FlDotData(show: false),
                 belowBarData: BarAreaData(show: false),
               ),
+              // Marcadores de señales individuales
+              ...data.signals.asMap().entries.map((entry) {
+                int index = entry.key;
+                var signal = entry.value;
+                List<Color> signalColors = [
+                  Colors.red.shade600,
+                  Colors.blue.shade600,
+                  Colors.green.shade600,
+                  Colors.orange.shade600,
+                  Colors.purple.shade600,
+                  Colors.teal.shade600,
+                ];
+                Color signalColor = signalColors[index % signalColors.length];
+                
+                return LineChartBarData(
+                  spots: [
+                    FlSpot(signal.frequency - signal.bandwidth/2, signal.power),
+                    FlSpot(signal.frequency, signal.power),
+                    FlSpot(signal.frequency + signal.bandwidth/2, signal.power),
+                  ],
+                  isCurved: false,
+                  color: signalColor,
+                  barWidth: 3,
+                  dotData: FlDotData(
+                    show: true,
+                    getDotPainter: (spot, percent, barData, index) {
+                      if (index == 1) { // Solo mostrar punto en el centro
+                        return FlDotCirclePainter(
+                          radius: 4,
+                          color: signalColor,
+                          strokeWidth: 2,
+                          strokeColor: Colors.white,
+                        );
+                      }
+                      return FlDotCirclePainter(radius: 0, color: Colors.transparent);
+                    },
+                  ),
+                  belowBarData: BarAreaData(show: false),
+                );
+              }).toList(),
             ],
             lineTouchData: LineTouchData(
               enabled: true,
@@ -239,7 +282,7 @@ class SpectrumLineChart extends StatelessWidget {
                         'Potencia: ${closestSignal.power.toStringAsFixed(2)} dBm\n'
                         'SNR: ${snr.toStringAsFixed(2)} dB',
                         TextStyle(
-                          color: Colors.white,
+                          color: Colors.grey.shade800,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -250,7 +293,7 @@ class SpectrumLineChart extends StatelessWidget {
                       'Freq: ${barSpot.x.toStringAsFixed(1)} MHz\n'
                       'Nivel: ${barSpot.y.toStringAsFixed(2)} dBm',
                       TextStyle(
-                        color: Colors.white,
+                        color: Colors.grey.shade800,
                         fontSize: 11,
                       ),
                     );
@@ -266,51 +309,53 @@ class SpectrumLineChart extends StatelessWidget {
 
   List<FlSpot> _generateSpectrumCurve() {
     List<FlSpot> spots = [];
-    double freqStart = data.minFrequency - 10;
-    double freqEnd = data.maxFrequency + 10;
-    double step = (freqEnd - freqStart) / 200; // 200 puntos para suavidad
+    double freqStart = data.minFrequency - 20;
+    double freqEnd = data.maxFrequency + 20;
+    double step = (freqEnd - freqStart) / 300; // Más puntos para mejor resolución
     
     for (double freq = freqStart; freq <= freqEnd; freq += step) {
-      double totalPower = data.thermalNoise; // Empezar con el nivel de ruido
+      double maxPower = data.thermalNoise; // Empezar con el nivel de ruido
       
-      // Sumar contribuciones de todas las señales
+      // Encontrar la señal más fuerte en esta frecuencia
       for (var signal in data.signals) {
-        double signalContribution = _getSignalContribution(freq, signal);
-        if (signalContribution > 0) {
-          // Conversión de dBm a potencia lineal, suma y vuelta a dBm
-          double linearNoise = math.pow(10, totalPower / 10).toDouble();
-          double linearSignal = math.pow(10, signalContribution / 10).toDouble();
-          totalPower = 10 * math.log(linearNoise + linearSignal) / math.ln10;
+        double signalPower = _getSignalPower(freq, signal);
+        if (signalPower > maxPower) {
+          maxPower = signalPower;
         }
       }
       
-      spots.add(FlSpot(freq, totalPower));
+      spots.add(FlSpot(freq, maxPower));
     }
     
     return spots;
   }
 
-  double _getSignalContribution(double frequency, dynamic signal) {
-    // Calcular la contribución de una señal en una frecuencia específica
+  double _getSignalPower(double frequency, dynamic signal) {
     double centerFreq = signal.frequency;
     double bandwidth = signal.bandwidth;
     double power = signal.power;
     
-    // Distancia desde el centro de la señal
-    double distance = (frequency - centerFreq).abs();
+    // Calcular los límites de la señal
+    double startFreq = centerFreq - (bandwidth / 2);
+    double endFreq = centerFreq + (bandwidth / 2);
     
-    if (distance <= bandwidth / 2) {
-      // Dentro del ancho de banda principal - usar forma gaussiana
-      double normalizedDistance = distance / (bandwidth / 4);
-      double attenuation = math.exp(-0.5 * normalizedDistance * normalizedDistance);
-      return power + 10 * math.log(attenuation) / math.ln10;
-    } else if (distance <= bandwidth) {
-      // En los lóbulos laterales - atenuación mayor
-      double sidelobeAttenuation = -20; // -20 dB de atenuación
-      return power + sidelobeAttenuation;
+    if (frequency >= startFreq && frequency <= endFreq) {
+      // Dentro del ancho de banda - forma rectangular con bordes suavizados
+      double distanceFromCenter = (frequency - centerFreq).abs();
+      double normalizedDistance = distanceFromCenter / (bandwidth / 2);
+      
+      if (normalizedDistance < 0.8) {
+        // Parte plana de la señal
+        return power;
+      } else {
+        // Transición suave en los bordes (roll-off)
+        double rolloff = math.cos((normalizedDistance - 0.8) * math.pi / (2 * 0.2));
+        return power + 20 * math.log(rolloff) / math.ln10;
+      }
     }
     
-    return 0; // Fuera del rango de la señal
+    // Fuera del ancho de banda - retornar nivel de ruido
+    return data.thermalNoise;
   }
 }
 
@@ -385,9 +430,21 @@ class SpectrumInfo extends StatelessWidget {
             SizedBox(height: 8),
             Row(
               children: [
-                _buildLegendItem(Colors.cyan.shade400, 'Espectro de Potencia'),
+                _buildLegendItem(Colors.blue.shade600, 'Espectro de Potencia'),
                 SizedBox(width: 20),
-                _buildLegendItem(Colors.red.shade400, 'Nivel de Ruido Térmico'),
+                _buildLegendItem(Colors.red.shade600, 'Ruido Térmico'),
+                SizedBox(width: 20),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.circle, size: 8, color: Colors.grey.shade600),
+                    SizedBox(width: 4),
+                    Text(
+                      'Señales Individuales',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
               ],
             ),
           ],
@@ -467,5 +524,5 @@ class SpectrumInfo extends StatelessWidget {
         ),
       ],
     );
-  } 
+  }
 }
