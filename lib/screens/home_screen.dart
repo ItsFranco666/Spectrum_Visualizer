@@ -6,8 +6,6 @@ import '../widgets/spectrum_chart.dart';
 import '../widgets/system_parameters_form.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -35,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       appBar: AppBar(
         title: Text('Espectro Radioeléctrico'),
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: const Color.fromARGB(255, 13, 42, 65),
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
@@ -70,8 +68,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SpectrumChart(),
         ],
       ),
+      // MODIFICATION: Interface adjustment - Hide calculate button in spectrum tab (requirement 2)
       floatingActionButton: Consumer<SpectrumProvider>(
         builder: (context, provider, child) {
+          // Only show calculate button in signals and system tabs, not in spectrum tab
+          if (_tabController.index == 2) {
+            return SizedBox.shrink(); // Completely hide button in spectrum tab
+          }
+          
           return FloatingActionButton.extended(
             onPressed: provider.isLoading ? null : () async {
               await provider.calculateSpectrum();
@@ -86,9 +90,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
-              : Icon(Icons.calculate),
-            label: Text(provider.isLoading ? 'Calculando...' : 'Calcular'),
-            backgroundColor: provider.isLoading ? Colors.grey : Colors.blue.shade700,
+              : Icon(Icons.calculate, color: Colors.white),
+            label: Text(provider.isLoading ? 'Calculando...' : 'Calcular', style: TextStyle(color: Colors.white)),
+            backgroundColor: provider.isLoading ? Colors.grey : const Color.fromARGB(255, 13, 42, 65),
           );
         },
       ),
