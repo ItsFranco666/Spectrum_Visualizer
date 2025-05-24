@@ -46,19 +46,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Tab(icon: Icon(Icons.show_chart), text: 'Espectro'),
           ],
         ),
-        actions: [
-          Consumer<SpectrumProvider>(
-            builder: (context, provider, child) {
-              return IconButton(
-                icon: Icon(Icons.file_download),
-                onPressed: provider.spectrumData != null 
-                  ? () => provider.exportToCSV()
-                  : null,
-                tooltip: 'Exportar CSV',
-              );
-            },
-          ),
-        ],
       ),
       body: TabBarView(
         controller: _tabController,

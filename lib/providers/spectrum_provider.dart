@@ -184,42 +184,4 @@ class SpectrumProvider extends ChangeNotifier {
       _initializeSignals();
     }
   }
-
-  Future<void> exportToCSV() async {
-    if (_spectrumData == null) return;
-
-    try {
-      List<List<String>> csvData = [
-        ['Signal ID', 'Frequency (MHz)', 'Bandwidth (MHz)', 'Power (dBm)', 'SNR (dB)'],
-      ];
-
-      for (Signal signal in _spectrumData!.signals) {
-        double snr = _spectrumData!.snrValues[signal.id] ?? 0;
-        csvData.add([
-          signal.id.toString(),
-          signal.frequency.toStringAsFixed(2),
-          signal.bandwidth.toStringAsFixed(2),
-          signal.power.toStringAsFixed(2),
-          snr.toStringAsFixed(2),
-        ]);
-      }
-
-      csvData.add(['', '', '', '', '']);
-      csvData.add(['System Parameters', '', '', '', '']);
-      csvData.add(['Temperature (K)', _temperature.toString(), '', '', '']);
-      csvData.add(['System BW (MHz)', _systemBandwidth.toString(), '', '', '']);
-      csvData.add(['Thermal Noise (dBm)', _spectrumData!.thermalNoise.toStringAsFixed(2), '', '', '']);
-
-      String csvString = csvData.map((row) => row.join(',')).join('\n');
-      
-      Directory? directory = await getExternalStorageDirectory();
-      String path = '${directory?.path}/spectrum_data_${DateTime.now().millisecondsSinceEpoch}.csv';
-      File file = File(path);
-      await file.writeAsString(csvString);
-      
-      print('CSV exported to: $path');
-    } catch (e) {
-      print('Error exporting CSV: $e');
-    }
-  }
 }
