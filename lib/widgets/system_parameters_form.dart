@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/spectrum_provider.dart';
 
 class SystemParametersForm extends StatefulWidget {
+  const SystemParametersForm({super.key});
+
   @override
   _SystemParametersFormState createState() => _SystemParametersFormState();
 }

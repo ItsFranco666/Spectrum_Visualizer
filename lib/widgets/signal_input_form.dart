@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/spectrum_provider.dart';
 
 class SignalInputForm extends StatelessWidget {
+  const SignalInputForm({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Consumer<SpectrumProvider>(
@@ -74,7 +76,7 @@ class SignalCard extends StatefulWidget {
   final int index;
   final dynamic signal;
 
-  SignalCard({required this.index, required this.signal});
+  const SignalCard({super.key, required this.index, required this.signal});
 
   @override
   _SignalCardState createState() => _SignalCardState();

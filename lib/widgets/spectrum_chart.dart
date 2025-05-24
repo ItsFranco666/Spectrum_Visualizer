@@ -6,6 +6,8 @@ import '../providers/spectrum_provider.dart';
 import '../models/spectrum_data.dart';
 
 class SpectrumChart extends StatelessWidget {
+  const SpectrumChart({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Consumer<SpectrumProvider>(
@@ -76,7 +78,7 @@ class SpectrumChart extends StatelessWidget {
 class SpectrumLineChart extends StatelessWidget {
   final SpectrumData data;
 
-  SpectrumLineChart({required this.data});
+  const SpectrumLineChart({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +136,7 @@ class SpectrumLineChart extends StatelessWidget {
                     return Padding(
                       padding: EdgeInsets.only(top: 8.0),
                       child: Text(
-                        '${value.toStringAsFixed(0)}',
+                        value.toStringAsFixed(0),
                         style: TextStyle(
                           color: Colors.grey.shade700,
                           fontSize: 11,
@@ -152,7 +154,7 @@ class SpectrumLineChart extends StatelessWidget {
                   interval: 10,
                   getTitlesWidget: (value, meta) {
                     return Text(
-                      '${value.toStringAsFixed(0)}',
+                      value.toStringAsFixed(0),
                       style: TextStyle(
                         color: Colors.grey.shade700,
                         fontSize: 11,
@@ -252,7 +254,7 @@ class SpectrumLineChart extends StatelessWidget {
                   ),
                   belowBarData: BarAreaData(show: false),
                 );
-              }).toList(),
+              }),
             ],
             lineTouchData: LineTouchData(
               enabled: true,
@@ -362,7 +364,7 @@ class SpectrumLineChart extends StatelessWidget {
 class SpectrumInfo extends StatelessWidget {
   final SpectrumData data;
 
-  SpectrumInfo({required this.data});
+  const SpectrumInfo({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {

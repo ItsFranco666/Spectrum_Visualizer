@@ -6,6 +6,8 @@ import '../widgets/spectrum_chart.dart';
 import '../widgets/system_parameters_form.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
