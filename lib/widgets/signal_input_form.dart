@@ -4,8 +4,6 @@ import 'package:provider/provider.dart';
 import '../providers/spectrum_provider.dart';
 
 class SignalInputForm extends StatelessWidget {
-  const SignalInputForm({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Consumer<SpectrumProvider>(
@@ -34,13 +32,14 @@ class SignalInputForm extends StatelessWidget {
                               decoration: InputDecoration(
                                 labelText: 'Número de señales',
                                 border: OutlineInputBorder(),
-                                helperText: 'Mínimo 3 señales',
+                                // Updated helper text to show network limit
+                                helperText: 'Mínimo 3, máximo 10 señales',
                               ),
                               keyboardType: TextInputType.number,
                               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                               onChanged: (value) {
                                 int? count = int.tryParse(value);
-                                if (count != null && count >= 3) {
+                                if (count != null && count >= 3 && count <= 10) {
                                   provider.setNumberOfSignals(count);
                                 }
                               },
@@ -48,6 +47,24 @@ class SignalInputForm extends StatelessWidget {
                           ),
                         ],
                       ),
+                      // Network limit validation warning
+                      if (provider.numberOfSignals >= 10)
+                        Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Row(
+                            children: [
+                              Icon(Icons.warning, color: Colors.orange, size: 16),
+                              SizedBox(width: 4),
+                              Text(
+                                'Límite máximo de redes alcanzado (10)',
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -76,7 +93,7 @@ class SignalCard extends StatefulWidget {
   final int index;
   final dynamic signal;
 
-  const SignalCard({super.key, required this.index, required this.signal});
+  SignalCard({required this.index, required this.signal});
 
   @override
   _SignalCardState createState() => _SignalCardState();
