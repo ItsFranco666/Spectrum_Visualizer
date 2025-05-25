@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import '../models/signal.dart';
 import '../models/spectrum_data.dart';
 

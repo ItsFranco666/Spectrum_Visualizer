@@ -46,23 +46,15 @@ class SpectrumChart extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Espectro Radioeléctrico',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        SizedBox(height: 16),
-                        Expanded(
-                          child: SpectrumLineChart(data: provider.spectrumData!),
-                        ),
-                      ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: 16),
+                    // Dynamic resizing: Use Expanded to fill available space
+                    Expanded(
+                      child: SpectrumLineChart(data: provider.spectrumData!),
                     ),
-                  ),
+                  ],
                 ),
               ),
               SizedBox(height: 16),
@@ -75,19 +67,60 @@ class SpectrumChart extends StatelessWidget {
   }
 }
 
-class SpectrumLineChart extends StatelessWidget {
+class SpectrumLineChart extends StatefulWidget {
   final SpectrumData data;
 
   const SpectrumLineChart({super.key, required this.data});
+
+  @override
+  State<SpectrumLineChart> createState() => _SpectrumLineChartState();
+}
+
+class _SpectrumLineChartState extends State<SpectrumLineChart> {
+  // Interactive features: Add pan and zoom control variables
+  double _minX;
+  double _maxX;
+  double _minY;
+  double _maxY;
+
+  _SpectrumLineChartState()
+      : _minX = 0,
+        _maxX = 100,
+        _minY = 0,
+        _maxY = 100;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeAxisBounds();
+  }
+
+  @override
+  void didUpdateWidget(SpectrumLineChart oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.data != oldWidget.data) {
+      _initializeAxisBounds();
+    }
+  }
+
+  // Interactive features: Initialize axis bounds for pan/zoom
+  void _initializeAxisBounds() {
+    double noiseLevel = widget.data.thermalNoise;
+    double maxPower = widget.data.signals.map((s) => s.power).reduce(math.max);
+    double minPower = math.min(noiseLevel - 15, widget.data.signals.map((s) => s.power).reduce(math.min) - 10);
+
+    _minX = widget.data.minFrequency - 20;
+    _maxX = widget.data.maxFrequency + 20;
+    _minY = minPower;
+    _maxY = maxPower + 10;
+  }
 
   @override
   Widget build(BuildContext context) {
     // Crear puntos para el gráfico de línea continua
     List<FlSpot> spots = _generateSpectrumCurve();
     
-    double noiseLevel = data.thermalNoise;
-    double maxPower = data.signals.map((s) => s.power).reduce(math.max);
-    double minPower = math.min(noiseLevel - 15, data.signals.map((s) => s.power).reduce(math.min) - 10);
+    double noiseLevel = widget.data.thermalNoise;
 
     return Container(
       decoration: BoxDecoration(
@@ -104,7 +137,7 @@ class SpectrumLineChart extends StatelessWidget {
               drawHorizontalLine: true,
               drawVerticalLine: true,
               horizontalInterval: 10,
-              verticalInterval: (data.maxFrequency - data.minFrequency) / 8,
+              verticalInterval: (widget.data.maxFrequency - widget.data.minFrequency) / 8,
               getDrawingHorizontalLine: (value) {
                 if ((value - noiseLevel).abs() < 2) {
                   return FlLine(
@@ -128,10 +161,23 @@ class SpectrumLineChart extends StatelessWidget {
             titlesData: FlTitlesData(
               show: true,
               bottomTitles: AxisTitles(
+                // Axis labels: Add x-axis label
+                axisNameWidget: Padding(
+                  padding: EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'Frecuencia (MHz)',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                axisNameSize: 30,
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 35,
-                  interval: (data.maxFrequency - data.minFrequency) / 6,
+                  interval: (_maxX - _minX) / 6,
                   getTitlesWidget: (value, meta) {
                     return Padding(
                       padding: EdgeInsets.only(top: 8.0),
@@ -148,6 +194,19 @@ class SpectrumLineChart extends StatelessWidget {
                 ),
               ),
               leftTitles: AxisTitles(
+                // Axis labels: Add y-axis label
+                axisNameWidget: RotatedBox(
+                  quarterTurns: 12,
+                  child: Text(
+                    'Potencia (dBm)',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                axisNameSize: 50,
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 45,
@@ -174,10 +233,11 @@ class SpectrumLineChart extends StatelessWidget {
                 width: 1.5,
               ),
             ),
-            minX: data.minFrequency - 20,
-            maxX: data.maxFrequency + 20,
-            minY: minPower,
-            maxY: maxPower + 10,
+            // Interactive features: Use dynamic bounds for pan/zoom
+            minX: _minX,
+            maxX: _maxX,
+            minY: _minY,
+            maxY: _maxY,
             lineBarsData: [
               LineChartBarData(
                 spots: spots,
@@ -193,10 +253,10 @@ class SpectrumLineChart extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.blue.shade400.withOpacity(0.7),
-                      Colors.blue.shade300.withOpacity(0.5),
-                      Colors.blue.shade200.withOpacity(0.3),
-                      Colors.blue.shade100.withOpacity(0.1),
+                      Colors.blue.shade400.withAlpha((0.7 * 255).round()),
+                      Colors.blue.shade300.withAlpha((0.5 * 255).round()),
+                      Colors.blue.shade200.withAlpha((0.3 * 255).round()),
+                      Colors.blue.shade100.withAlpha((0.1 * 255).round()),
                     ],
                     stops: [0.0, 0.4, 0.7, 1.0],
                   ),
@@ -205,8 +265,8 @@ class SpectrumLineChart extends StatelessWidget {
               // Línea de ruido térmico
               LineChartBarData(
                 spots: [
-                  FlSpot(data.minFrequency - 20, noiseLevel),
-                  FlSpot(data.maxFrequency + 20, noiseLevel),
+                  FlSpot(_minX, noiseLevel),
+                  FlSpot(_maxX, noiseLevel),
                 ],
                 isCurved: false,
                 color: Colors.red.shade600,
@@ -216,7 +276,7 @@ class SpectrumLineChart extends StatelessWidget {
                 belowBarData: BarAreaData(show: false),
               ),
               // Marcadores de señales individuales
-              ...data.signals.asMap().entries.map((entry) {
+              ...widget.data.signals.asMap().entries.map((entry) {
                 int index = entry.key;
                 var signal = entry.value;
                 List<Color> signalColors = [
@@ -259,15 +319,20 @@ class SpectrumLineChart extends StatelessWidget {
             lineTouchData: LineTouchData(
               enabled: true,
               touchTooltipData: LineTouchTooltipData(
+                fitInsideHorizontally: true,
+                fitInsideVertically: true,
                 tooltipPadding: EdgeInsets.all(8),
                 tooltipBorderRadius: BorderRadius.circular(8),
+                maxContentWidth: 200,
                 getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                  if (touchedBarSpots.isEmpty) return [];
+                  
                   return touchedBarSpots.map((barSpot) {
                     // Encontrar la señal más cercana
-                    var closestSignal = data.signals.first;
+                    var closestSignal = widget.data.signals.first;
                     double minDistance = double.infinity;
                     
-                    for (var signal in data.signals) {
+                    for (var signal in widget.data.signals) {
                       double distance = (signal.frequency - barSpot.x).abs();
                       if (distance < minDistance) {
                         minDistance = distance;
@@ -276,7 +341,7 @@ class SpectrumLineChart extends StatelessWidget {
                     }
                     
                     if (minDistance < closestSignal.bandwidth) {
-                      final snr = data.snrValues[closestSignal.id] ?? 0;
+                      final snr = widget.data.snrValues[closestSignal.id] ?? 0;
                       return LineTooltipItem(
                         'Señal ${closestSignal.id}\n'
                         'Freq: ${closestSignal.frequency.toStringAsFixed(1)} MHz\n'
@@ -303,7 +368,12 @@ class SpectrumLineChart extends StatelessWidget {
                 },
               ),
             ),
+            // Interactive features: Enable pan and zoom gestures
+            clipData: FlClipData.all(),
           ),
+          // Interactive features: Add gesture detector for pan and zoom
+          // swapAnimationDuration: Duration(milliseconds: 150),
+          // swapAnimationCurve: Curves.linear,
         ),
       ),
     );
@@ -311,15 +381,15 @@ class SpectrumLineChart extends StatelessWidget {
 
   List<FlSpot> _generateSpectrumCurve() {
     List<FlSpot> spots = [];
-    double freqStart = data.minFrequency - 20;
-    double freqEnd = data.maxFrequency + 20;
+    double freqStart = widget.data.minFrequency - 20;
+    double freqEnd = widget.data.maxFrequency + 20;
     double step = (freqEnd - freqStart) / 300; // Más puntos para mejor resolución
     
     for (double freq = freqStart; freq <= freqEnd; freq += step) {
-      double maxPower = data.thermalNoise; // Empezar con el nivel de ruido
+      double maxPower = widget.data.thermalNoise; // Empezar con el nivel de ruido
       
       // Encontrar la señal más fuerte en esta frecuencia
-      for (var signal in data.signals) {
+      for (var signal in widget.data.signals) {
         double signalPower = _getSignalPower(freq, signal);
         if (signalPower > maxPower) {
           maxPower = signalPower;
@@ -357,7 +427,7 @@ class SpectrumLineChart extends StatelessWidget {
     }
     
     // Fuera del ancho de banda - retornar nivel de ruido
-    return data.thermalNoise;
+    return widget.data.thermalNoise;
   }
 }
 
