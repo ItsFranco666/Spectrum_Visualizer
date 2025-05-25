@@ -77,11 +77,22 @@ class SpectrumLineChart extends StatefulWidget {
 }
 
 class _SpectrumLineChartState extends State<SpectrumLineChart> {
-  // Interactive features: Add pan and zoom control variables
   double _minX;
   double _maxX;
   double _minY;
   double _maxY;
+  
+  // Variables para control de gestos
+  late double _startMinX;
+  late double _startMaxX;
+  late double _startMinY;
+  late double _startMaxY;
+  late Offset _startFocalPoint;
+  // Variables para el rango original (para reset)
+  double _originalMinX = 0;
+  double _originalMaxX = 100;
+  double _originalMinY = 0;
+  double _originalMaxY = 100;
 
   _SpectrumLineChartState()
       : _minX = 0,
@@ -113,6 +124,22 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
     _maxX = widget.data.maxFrequency + 20;
     _minY = minPower;
     _maxY = maxPower + 10;
+    
+    // Guardar valores originales
+    _originalMinX = _minX;
+    _originalMaxX = _maxX;
+    _originalMinY = _minY;
+    _originalMaxY = _maxY;
+  }
+
+  // Función para resetear el zoom
+  void _resetZoom() {
+    setState(() {
+      _minX = _originalMinX;
+      _maxX = _originalMaxX;
+      _minY = _originalMinY;
+      _maxY = _originalMaxY;
+    });
   }
 
   // Generar valores clave para el eje X
@@ -194,221 +221,314 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(16.0),
-        child: LineChart(
-          LineChartData(
-            gridData: FlGridData(
-              show: true,
-              drawHorizontalLine: true,
-              drawVerticalLine: true,
-              horizontalInterval: 10,
-              verticalInterval: (widget.data.maxFrequency - widget.data.minFrequency) / 8,
-              getDrawingHorizontalLine: (value) {
-                if ((value - noiseLevel).abs() < 2) {
-                  return FlLine(
-                    color: Colors.red.shade600,
-                    strokeWidth: 2,
-                    dashArray: [8, 4],
-                  );
-                }
-                return FlLine(
-                  color: Colors.grey.shade400,
-                  strokeWidth: 0.8,
-                );
-              },
-              getDrawingVerticalLine: (value) {
-                return FlLine(
-                  color: Colors.grey.shade400,
-                  strokeWidth: 0.8,
-                );
-              },
-            ),
-            titlesData: FlTitlesData(
-              show: true,
-              bottomTitles: AxisTitles(
-                // Axis labels: Add x-axis label
-                axisNameWidget: Padding(
-                  padding: EdgeInsets.only(top: 8.0),
-                  child: Text(
-                    'Frecuencia (MHz)',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
+      child: Column(
+        children: [
+          // Botón de reset zoom
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _resetZoom,
+                  icon: Icon(Icons.zoom_out_map, size: 16),
+                  label: Text('Reset Zoom'),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    minimumSize: Size(0, 0),
                   ),
                 ),
-                axisNameSize: 30,
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 35,
-                  getTitlesWidget: (value, meta) {
-                    // Mostrar solo las frecuencias clave
-                    bool isKeyFrequency = keyFrequencies.any((freq) => (freq - value).abs() < 0.5);
+              ],
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: GestureDetector(
+                onScaleStart: (details) {
+                  _startMinX = _minX;
+                  _startMaxX = _maxX;
+                  _startMinY = _minY;
+                  _startMaxY = _maxY;
+                  _startFocalPoint = details.focalPoint;
+                },
+                onScaleUpdate: (details) {
+                  final renderBox = context.findRenderObject() as RenderBox?;
+                  if (renderBox == null) return;
+
+                  final size = renderBox.size;
+                  
+                  // Manejar PAN (desplazamiento)
+                  if (details.scale == 1.0) {
+                    final deltaX = details.focalPoint.dx - _startFocalPoint.dx;
+                    final deltaY = details.focalPoint.dy - _startFocalPoint.dy;
+
+                    final dxPercent = deltaX / size.width;
+                    final dyPercent = deltaY / size.height;
+
+                    final dataDeltaX = (_startMaxX - _startMinX) * dxPercent;
+                    final dataDeltaY = (_startMaxY - _startMinY) * dyPercent;
+
+                    setState(() {
+                      _minX = (_startMinX - dataDeltaX)
+                          .clamp(_originalMinX - 1000, _originalMaxX + 1000);
+                      _maxX = (_startMaxX - dataDeltaX)
+                          .clamp(_originalMinX - 1000, _originalMaxX + 1000);
+                      _minY = (_startMinY + dataDeltaY)
+                          .clamp(_originalMinY - 100, _originalMaxY + 100);
+                      _maxY = (_startMaxY + dataDeltaY)
+                          .clamp(_originalMinY - 100, _originalMaxY + 100);
+                    });
+                  }
+                  // Manejar ZOOM
+                  else {
+                    final focalPoint = details.localFocalPoint;
                     
-                    if (isKeyFrequency) {
-                      return Padding(
-                        padding: EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          value.toStringAsFixed(1),
-                          style: TextStyle(
-                            color: Colors.grey.shade700,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
+                    // Convertir posición a coordenadas del gráfico
+                    final focalX = _startMinX + 
+                        (focalPoint.dx / size.width) * (_startMaxX - _startMinX);
+                    final focalY = _startMaxY - 
+                        (focalPoint.dy / size.height) * (_startMaxY - _startMinY);
+
+                    // Calcular nuevos rangos
+                    final newMinX = focalX - 
+                        (focalX - _startMinX) / details.scale;
+                    final newMaxX = focalX + 
+                        (_startMaxX - focalX) / details.scale;
+                    final newMinY = focalY - 
+                        (focalY - _startMinY) / details.scale;
+                    final newMaxY = focalY + 
+                        (_startMaxY - focalY) / details.scale;
+
+                    setState(() {
+                      _minX = newMinX.clamp(
+                          _originalMinX - 1000, _originalMaxX + 1000);
+                      _maxX = newMaxX.clamp(
+                          _originalMinX - 1000, _originalMaxX + 1000);
+                      _minY = newMinY.clamp(
+                          _originalMinY - 100, _originalMaxY + 100);
+                      _maxY = newMaxY.clamp(
+                          _originalMinY - 100, _originalMaxY + 100);
+                    });
+                  }
+                },
+                child: LineChart(
+                  LineChartData(
+                    gridData: FlGridData(
+                      show: true,
+                      drawHorizontalLine: true,
+                      drawVerticalLine: true,
+                      horizontalInterval: 10,
+                      verticalInterval: (widget.data.maxFrequency - widget.data.minFrequency) / 8,
+                      getDrawingHorizontalLine: (value) {
+                        if ((value - noiseLevel).abs() < 2) {
+                          return FlLine(
+                            color: Colors.red.shade600,
+                            strokeWidth: 2,
+                            dashArray: [8, 4],
+                          );
+                        }
+                        return FlLine(
+                          color: Colors.grey.shade400,
+                          strokeWidth: 0.8,
+                        );
+                      },
+                      getDrawingVerticalLine: (value) {
+                        return FlLine(
+                          color: Colors.grey.shade400,
+                          strokeWidth: 0.8,
+                        );
+                      },
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        // Axis labels: Add x-axis label
+                        axisNameWidget: Padding(
+                          padding: EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            'Frecuencia (MHz)',
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      );
-                    }
-                    return Container();
-                  },
-                ),
-              ),
-              leftTitles: AxisTitles(
-                // Axis labels: Add y-axis label
-                axisNameWidget: RotatedBox(
-                  quarterTurns: 12,
-                  child: Text(
-                    'Potencia (dBm)',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                axisNameSize: 50,
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 45,
-                  interval: 10,
-                  getTitlesWidget: (value, meta) {
-                    return Text(
-                      value.toStringAsFixed(0),
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    );
-                  },
-                ),
-              ),
-              topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            ),
-            borderData: FlBorderData(
-              show: true,
-              border: Border.all(
-                color: Colors.grey.shade600,
-                width: 1.5,
-              ),
-            ),
-            // Interactive features: Use dynamic bounds for pan/zoom
-            minX: _minX,
-            maxX: _maxX,
-            minY: _minY,
-            maxY: _maxY,
-            lineBarsData: [
-              // Espectro principal
-              LineChartBarData(
-                spots: spots,
-                isCurved: true,
-                curveSmoothness: 0.2,
-                color: Colors.blue.shade600,
-                barWidth: 2.5,
-                isStrokeCapRound: true,
-                dotData: FlDotData(show: false),
-                belowBarData: BarAreaData(
-                  show: true,
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.blue.shade400.withAlpha((0.7 * 255).round()),
-                      Colors.blue.shade300.withAlpha((0.5 * 255).round()),
-                      Colors.blue.shade200.withAlpha((0.3 * 255).round()),
-                      Colors.blue.shade100.withAlpha((0.1 * 255).round()),
-                    ],
-                    stops: [0.0, 0.4, 0.7, 1.0],
-                  ),
-                ),
-              ),
-              // Línea de ruido térmico
-              LineChartBarData(
-                spots: [
-                  FlSpot(_minX, noiseLevel),
-                  FlSpot(_maxX, noiseLevel),
-                ],
-                isCurved: false,
-                color: Colors.red.shade600,
-                barWidth: 2,
-                dashArray: [8, 4],
-                dotData: FlDotData(show: false),
-                belowBarData: BarAreaData(show: false),
-              ),
-            ],
-            lineTouchData: LineTouchData(
-              enabled: true,
-              touchTooltipData: LineTouchTooltipData(
-                fitInsideHorizontally: true,
-                fitInsideVertically: true,
-                tooltipPadding: EdgeInsets.all(8),
-                tooltipBorderRadius: BorderRadius.circular(8),
-                maxContentWidth: 200,
-                getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                  if (touchedBarSpots.isEmpty) return [];
-                  
-                  return touchedBarSpots.map((barSpot) {
-                    // Solo procesar el primer punto tocado para evitar duplicaciones
-                    if (touchedBarSpots.indexOf(barSpot) > 0) {
-                      return null;
-                    }
-                    
-                    // Encontrar la señal más cercana
-                    var closestSignal = widget.data.signals.first;
-                    double minDistance = double.infinity;
-                    
-                    for (var signal in widget.data.signals) {
-                      double distance = (signal.frequency - barSpot.x).abs();
-                      if (distance < minDistance) {
-                        minDistance = distance;
-                        closestSignal = signal;
-                      }
-                    }
-                    
-                    if (minDistance < closestSignal.bandwidth / 2) {
-                      final snr = widget.data.snrValues[closestSignal.id] ?? 0;
-                      return LineTooltipItem(
-                        'Señal ${closestSignal.id}\n'
-                        'Freq: ${closestSignal.frequency.toStringAsFixed(1)} MHz\n'
-                        'BW: ${closestSignal.bandwidth.toStringAsFixed(1)} MHz\n'
-                        'Potencia: ${closestSignal.power.toStringAsFixed(2)} dBm\n'
-                        'SNR: ${snr.toStringAsFixed(2)} dB',
-                        TextStyle(
-                          color: Colors.grey.shade800,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                        axisNameSize: 30,
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 35,
+                          getTitlesWidget: (value, meta) {
+                            // Mostrar solo las frecuencias clave
+                            bool isKeyFrequency = keyFrequencies.any((freq) => (freq - value).abs() < 0.5);
+                            
+                            if (isKeyFrequency) {
+                              return Padding(
+                                padding: EdgeInsets.only(top: 8.0),
+                                child: Text(
+                                  value.toStringAsFixed(1),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              );
+                            }
+                            return Container();
+                          },
                         ),
-                      );
-                    }
-                    
-                    return LineTooltipItem(
-                      'Freq: ${barSpot.x.toStringAsFixed(1)} MHz\n'
-                      'Nivel: ${barSpot.y.toStringAsFixed(2)} dBm',
-                      TextStyle(
-                        color: Colors.grey.shade800,
-                        fontSize: 11,
                       ),
-                    );
-                  }).where((item) => item != null).cast<LineTooltipItem>().toList();
-                },
+                      leftTitles: AxisTitles(
+                        // Axis labels: Add y-axis label
+                        axisNameWidget: RotatedBox(
+                          quarterTurns: 12,
+                          child: Text(
+                            'Potencia (dBm)',
+                            style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        axisNameSize: 50,
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 45,
+                          interval: 10,
+                          getTitlesWidget: (value, meta) {
+                            return Text(
+                              value.toStringAsFixed(0),
+                              style: TextStyle(
+                                color: Colors.grey.shade700,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    ),
+                    borderData: FlBorderData(
+                      show: true,
+                      border: Border.all(
+                        color: Colors.grey.shade600,
+                        width: 1.5,
+                      ),
+                    ),
+                    // Interactive features: Use dynamic bounds for pan/zoom
+                    minX: _minX,
+                    maxX: _maxX,
+                    minY: _minY,
+                    maxY: _maxY,
+                    lineBarsData: [
+                      // Espectro principal
+                      LineChartBarData(
+                        spots: spots,
+                        isCurved: true,
+                        curveSmoothness: 0.2,
+                        color: Colors.blue.shade600,
+                        barWidth: 2.5,
+                        isStrokeCapRound: true,
+                        dotData: FlDotData(show: false),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.blue.shade400.withAlpha((0.7 * 255).round()),
+                              Colors.blue.shade300.withAlpha((0.5 * 255).round()),
+                              Colors.blue.shade200.withAlpha((0.3 * 255).round()),
+                              Colors.blue.shade100.withAlpha((0.1 * 255).round()),
+                            ],
+                            stops: [0.0, 0.4, 0.7, 1.0],
+                          ),
+                        ),
+                      ),
+                      // Línea de ruido térmico
+                      LineChartBarData(
+                        spots: [
+                          FlSpot(_minX, noiseLevel),
+                          FlSpot(_maxX, noiseLevel),
+                        ],
+                        isCurved: false,
+                        color: Colors.red.shade600,
+                        barWidth: 2,
+                        dashArray: [8, 4],
+                        dotData: FlDotData(show: false),
+                        belowBarData: BarAreaData(show: false),
+                      ),
+                    ],
+                    lineTouchData: LineTouchData(
+                      enabled: true,
+                      touchTooltipData: LineTouchTooltipData(
+                        fitInsideHorizontally: true,
+                        fitInsideVertically: true,
+                        tooltipPadding: EdgeInsets.all(8),
+                        tooltipBorderRadius: BorderRadius.circular(8),
+                        maxContentWidth: 200,
+                        getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                          if (touchedBarSpots.isEmpty) return [];
+                          
+                          return touchedBarSpots.map((barSpot) {
+                            // Solo procesar el primer punto tocado para evitar duplicaciones
+                            if (touchedBarSpots.indexOf(barSpot) > 0) {
+                              return null;
+                            }
+                            
+                            // Encontrar la señal más cercana
+                            var closestSignal = widget.data.signals.first;
+                            double minDistance = double.infinity;
+                            
+                            for (var signal in widget.data.signals) {
+                              double distance = (signal.frequency - barSpot.x).abs();
+                              if (distance < minDistance) {
+                                minDistance = distance;
+                                closestSignal = signal;
+                              }
+                            }
+                            
+                            if (minDistance < closestSignal.bandwidth / 2) {
+                              final snr = widget.data.snrValues[closestSignal.id] ?? 0;
+                              return LineTooltipItem(
+                                'Señal ${closestSignal.id}\n'
+                                'Freq: ${closestSignal.frequency.toStringAsFixed(1)} MHz\n'
+                                'BW: ${closestSignal.bandwidth.toStringAsFixed(1)} MHz\n'
+                                'Potencia: ${closestSignal.power.toStringAsFixed(2)} dBm\n'
+                                'SNR: ${snr.toStringAsFixed(2)} dB',
+                                TextStyle(
+                                  color: Colors.grey.shade800,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              );
+                            }
+                            
+                            return LineTooltipItem(
+                              'Freq: ${barSpot.x.toStringAsFixed(1)} MHz\n'
+                              'Nivel: ${barSpot.y.toStringAsFixed(2)} dBm',
+                              TextStyle(
+                                color: Colors.grey.shade800,
+                                fontSize: 11,
+                              ),
+                            );
+                          }).where((item) => item != null).cast<LineTooltipItem>().toList();
+                        },
+                      ),
+                    ),
+                    // Interactive features: Enable pan and zoom gestures
+                    clipData: FlClipData.all(),
+                  ),
+                ),
               ),
             ),
-            // Interactive features: Enable pan and zoom gestures
-            clipData: FlClipData.all(),
           ),
-        ),
+        ],
       ),
     );
   }
