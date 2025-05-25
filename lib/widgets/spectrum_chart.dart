@@ -319,52 +319,55 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
             lineTouchData: LineTouchData(
               enabled: true,
               touchTooltipData: LineTouchTooltipData(
+                // Bug fix: Improved tooltip positioning to prevent overflow
                 fitInsideHorizontally: true,
                 fitInsideVertically: true,
                 tooltipPadding: EdgeInsets.all(8),
                 tooltipBorderRadius: BorderRadius.circular(8),
-                maxContentWidth: 200,
+                maxContentWidth: 200, // Limit tooltip width
                 getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                  // Bug fix: Only show tooltip for the primary spectrum line to avoid duplicates
                   if (touchedBarSpots.isEmpty) return [];
                   
-                  return touchedBarSpots.map((barSpot) {
-                    // Encontrar la señal más cercana
-                    var closestSignal = widget.data.signals.first;
-                    double minDistance = double.infinity;
-                    
-                    for (var signal in widget.data.signals) {
-                      double distance = (signal.frequency - barSpot.x).abs();
-                      if (distance < minDistance) {
-                        minDistance = distance;
-                        closestSignal = signal;
-                      }
+                  // Take only the first touched point to avoid multiple tooltips
+                  var barSpot = touchedBarSpots.first;
+                  
+                  // Encontrar la señal más cercana
+                  var closestSignal = widget.data.signals.first;
+                  double minDistance = double.infinity;
+                  
+                  for (var signal in widget.data.signals) {
+                    double distance = (signal.frequency - barSpot.x).abs();
+                    if (distance < minDistance) {
+                      minDistance = distance;
+                      closestSignal = signal;
                     }
-                    
-                    if (minDistance < closestSignal.bandwidth) {
-                      final snr = widget.data.snrValues[closestSignal.id] ?? 0;
-                      return LineTooltipItem(
-                        'Señal ${closestSignal.id}\n'
-                        'Freq: ${closestSignal.frequency.toStringAsFixed(1)} MHz\n'
-                        'BW: ${closestSignal.bandwidth.toStringAsFixed(1)} MHz\n'
-                        'Potencia: ${closestSignal.power.toStringAsFixed(2)} dBm\n'
-                        'SNR: ${snr.toStringAsFixed(2)} dB',
-                        TextStyle(
-                          color: Colors.grey.shade800,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      );
-                    }
-                    
-                    return LineTooltipItem(
-                      'Freq: ${barSpot.x.toStringAsFixed(1)} MHz\n'
-                      'Nivel: ${barSpot.y.toStringAsFixed(2)} dBm',
+                  }
+                  
+                  if (minDistance < closestSignal.bandwidth) {
+                    final snr = widget.data.snrValues[closestSignal.id] ?? 0;
+                    return [LineTooltipItem(
+                      'Señal ${closestSignal.id}\n'
+                      'Freq: ${closestSignal.frequency.toStringAsFixed(1)} MHz\n'
+                      'BW: ${closestSignal.bandwidth.toStringAsFixed(1)} MHz\n'
+                      'Potencia: ${closestSignal.power.toStringAsFixed(2)} dBm\n'
+                      'SNR: ${snr.toStringAsFixed(2)} dB',
                       TextStyle(
                         color: Colors.grey.shade800,
                         fontSize: 11,
+                        fontWeight: FontWeight.w500,
                       ),
-                    );
-                  }).toList();
+                    )];
+                  }
+                  
+                  return [LineTooltipItem(
+                    'Freq: ${barSpot.x.toStringAsFixed(1)} MHz\n'
+                    'Nivel: ${barSpot.y.toStringAsFixed(2)} dBm',
+                    TextStyle(
+                      color: Colors.grey.shade800,
+                      fontSize: 11,
+                    ),
+                  )];
                 },
               ),
             ),
