@@ -1,5 +1,5 @@
-name: Visualizador_de_Espectros
-description: "Aplicación para visualizar espectros radioelectricos de señales de radio"
+name: visualizador_de_espectros
+description: "Aplicación para visualizar espectros radioeléctricos de señales de radio"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -30,11 +30,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  fl_chart: ^1.0.0
+  # Updated chart library for visualization
+  fl_chart: ^1.2.0
+  # State management
   provider: ^6.1.1
+  # Local storage for app configuration
   shared_preferences: ^2.2.2
+  # File system access
   path_provider: ^2.1.1
+  # CSV export functionality
   csv: ^6.0.0
+  # Permission handling for file access
   permission_handler: ^12.0.0+1
 
 dev_dependencies:

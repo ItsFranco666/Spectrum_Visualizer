@@ -115,12 +115,78 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
     _maxY = maxPower + 10;
   }
 
+  // Generar valores clave para el eje X
+  List<double> _getKeyFrequencies() {
+    Set<double> keyFreqs = <double>{};
+    
+    // Agregar frecuencias extremas del rango visible
+    keyFreqs.add(_minX);
+    keyFreqs.add(_maxX);
+    
+    // Agregar frecuencias de las señales y sus límites de ancho de banda
+    for (var signal in widget.data.signals) {
+      double centerFreq = signal.frequency;
+      double bandwidth = signal.bandwidth;
+      double lowerLimit = centerFreq - bandwidth / 2;
+      double upperLimit = centerFreq + bandwidth / 2;
+      
+      // Siempre agregar la frecuencia central
+      keyFreqs.add(centerFreq);
+      
+      // Agregar límites de ancho de banda si están dentro del rango visible
+      if (lowerLimit >= _minX && lowerLimit <= _maxX) {
+        keyFreqs.add(lowerLimit);
+      }
+      if (upperLimit >= _minX && upperLimit <= _maxX) {
+        keyFreqs.add(upperLimit);
+      }
+    }
+    
+    // Convertir a lista ordenada y filtrar valores dentro del rango visible
+    List<double> sortedFreqs = keyFreqs
+        .where((freq) => freq >= _minX && freq <= _maxX)
+        .toList()
+      ..sort();
+    
+    // Si hay demasiadas frecuencias (más de 10), priorizar las más importantes
+    if (sortedFreqs.length > 10) {
+      Set<double> priorityFreqs = <double>{};
+      
+      // Siempre mantener extremos del rango
+      priorityFreqs.add(sortedFreqs.first); // Mínimo
+      priorityFreqs.add(sortedFreqs.last);  // Máximo
+      
+      // Siempre mantener frecuencias centrales y límites de ancho de banda
+      for (var signal in widget.data.signals) {
+        double centerFreq = signal.frequency;
+        double bandwidth = signal.bandwidth;
+        double lowerLimit = centerFreq - bandwidth / 2;
+        double upperLimit = centerFreq + bandwidth / 2;
+        
+        if (centerFreq >= _minX && centerFreq <= _maxX) {
+          priorityFreqs.add(centerFreq); // Frecuencia central
+        }
+        if (lowerLimit >= _minX && lowerLimit <= _maxX) {
+          priorityFreqs.add(lowerLimit); // Límite inferior
+        }
+        if (upperLimit >= _minX && upperLimit <= _maxX) {
+          priorityFreqs.add(upperLimit); // Límite superior
+        }
+      }
+      
+      return priorityFreqs.toList()..sort();
+    }
+    
+    return sortedFreqs;
+  }
+
   @override
   Widget build(BuildContext context) {
     // Crear puntos para el gráfico de línea continua
     List<FlSpot> spots = _generateSpectrumCurve();
     
     double noiseLevel = widget.data.thermalNoise;
+    List<double> keyFrequencies = _getKeyFrequencies();
 
     return Container(
       decoration: BoxDecoration(
@@ -177,19 +243,24 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 35,
-                  interval: (_maxX - _minX) / 6,
                   getTitlesWidget: (value, meta) {
-                    return Padding(
-                      padding: EdgeInsets.only(top: 8.0),
-                      child: Text(
-                        value.toStringAsFixed(0),
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
+                    // Mostrar solo las frecuencias clave
+                    bool isKeyFrequency = keyFrequencies.any((freq) => (freq - value).abs() < 0.5);
+                    
+                    if (isKeyFrequency) {
+                      return Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          value.toStringAsFixed(1),
+                          style: TextStyle(
+                            color: Colors.grey.shade700,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    );
+                      );
+                    }
+                    return Container();
                   },
                 ),
               ),
@@ -239,6 +310,7 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
             minY: _minY,
             maxY: _maxY,
             lineBarsData: [
+              // Espectro principal
               LineChartBarData(
                 spots: spots,
                 isCurved: true,
@@ -275,108 +347,67 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
                 dotData: FlDotData(show: false),
                 belowBarData: BarAreaData(show: false),
               ),
-              // Marcadores de señales individuales
-              ...widget.data.signals.asMap().entries.map((entry) {
-                int index = entry.key;
-                var signal = entry.value;
-                List<Color> signalColors = [
-                  Colors.red.shade600,
-                  Colors.blue.shade600,
-                  Colors.green.shade600,
-                  Colors.orange.shade600,
-                  Colors.purple.shade600,
-                  Colors.teal.shade600,
-                ];
-                Color signalColor = signalColors[index % signalColors.length];
-                
-                return LineChartBarData(
-                  spots: [
-                    FlSpot(signal.frequency - signal.bandwidth/2, signal.power),
-                    FlSpot(signal.frequency, signal.power),
-                    FlSpot(signal.frequency + signal.bandwidth/2, signal.power),
-                  ],
-                  isCurved: false,
-                  color: signalColor,
-                  barWidth: 3,
-                  dotData: FlDotData(
-                    show: true,
-                    getDotPainter: (spot, percent, barData, index) {
-                      if (index == 1) { // Solo mostrar punto en el centro
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: signalColor,
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      }
-                      return FlDotCirclePainter(radius: 0, color: Colors.transparent);
-                    },
-                  ),
-                  belowBarData: BarAreaData(show: false),
-                );
-              }),
             ],
             lineTouchData: LineTouchData(
               enabled: true,
               touchTooltipData: LineTouchTooltipData(
-                // Bug fix: Improved tooltip positioning to prevent overflow
                 fitInsideHorizontally: true,
                 fitInsideVertically: true,
                 tooltipPadding: EdgeInsets.all(8),
                 tooltipBorderRadius: BorderRadius.circular(8),
-                maxContentWidth: 200, // Limit tooltip width
+                maxContentWidth: 200,
                 getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                  // Bug fix: Only show tooltip for the primary spectrum line to avoid duplicates
                   if (touchedBarSpots.isEmpty) return [];
                   
-                  // Take only the first touched point to avoid multiple tooltips
-                  var barSpot = touchedBarSpots.first;
-                  
-                  // Encontrar la señal más cercana
-                  var closestSignal = widget.data.signals.first;
-                  double minDistance = double.infinity;
-                  
-                  for (var signal in widget.data.signals) {
-                    double distance = (signal.frequency - barSpot.x).abs();
-                    if (distance < minDistance) {
-                      minDistance = distance;
-                      closestSignal = signal;
+                  return touchedBarSpots.map((barSpot) {
+                    // Solo procesar el primer punto tocado para evitar duplicaciones
+                    if (touchedBarSpots.indexOf(barSpot) > 0) {
+                      return null;
                     }
-                  }
-                  
-                  if (minDistance < closestSignal.bandwidth) {
-                    final snr = widget.data.snrValues[closestSignal.id] ?? 0;
-                    return [LineTooltipItem(
-                      'Señal ${closestSignal.id}\n'
-                      'Freq: ${closestSignal.frequency.toStringAsFixed(1)} MHz\n'
-                      'BW: ${closestSignal.bandwidth.toStringAsFixed(1)} MHz\n'
-                      'Potencia: ${closestSignal.power.toStringAsFixed(2)} dBm\n'
-                      'SNR: ${snr.toStringAsFixed(2)} dB',
+                    
+                    // Encontrar la señal más cercana
+                    var closestSignal = widget.data.signals.first;
+                    double minDistance = double.infinity;
+                    
+                    for (var signal in widget.data.signals) {
+                      double distance = (signal.frequency - barSpot.x).abs();
+                      if (distance < minDistance) {
+                        minDistance = distance;
+                        closestSignal = signal;
+                      }
+                    }
+                    
+                    if (minDistance < closestSignal.bandwidth / 2) {
+                      final snr = widget.data.snrValues[closestSignal.id] ?? 0;
+                      return LineTooltipItem(
+                        'Señal ${closestSignal.id}\n'
+                        'Freq: ${closestSignal.frequency.toStringAsFixed(1)} MHz\n'
+                        'BW: ${closestSignal.bandwidth.toStringAsFixed(1)} MHz\n'
+                        'Potencia: ${closestSignal.power.toStringAsFixed(2)} dBm\n'
+                        'SNR: ${snr.toStringAsFixed(2)} dB',
+                        TextStyle(
+                          color: Colors.grey.shade800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      );
+                    }
+                    
+                    return LineTooltipItem(
+                      'Freq: ${barSpot.x.toStringAsFixed(1)} MHz\n'
+                      'Nivel: ${barSpot.y.toStringAsFixed(2)} dBm',
                       TextStyle(
                         color: Colors.grey.shade800,
                         fontSize: 11,
-                        fontWeight: FontWeight.w500,
                       ),
-                    )];
-                  }
-                  
-                  return [LineTooltipItem(
-                    'Freq: ${barSpot.x.toStringAsFixed(1)} MHz\n'
-                    'Nivel: ${barSpot.y.toStringAsFixed(2)} dBm',
-                    TextStyle(
-                      color: Colors.grey.shade800,
-                      fontSize: 11,
-                    ),
-                  )];
+                    );
+                  }).where((item) => item != null).cast<LineTooltipItem>().toList();
                 },
               ),
             ),
             // Interactive features: Enable pan and zoom gestures
             clipData: FlClipData.all(),
           ),
-          // Interactive features: Add gesture detector for pan and zoom
-          // swapAnimationDuration: Duration(milliseconds: 150),
-          // swapAnimationCurve: Curves.linear,
         ),
       ),
     );
@@ -508,18 +539,6 @@ class SpectrumInfo extends StatelessWidget {
                 _buildLegendItem(Colors.blue.shade600, 'Espectro de Potencia'),
                 SizedBox(width: 20),
                 _buildLegendItem(Colors.red.shade600, 'Ruido Térmico'),
-                SizedBox(width: 20),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.circle, size: 8, color: Colors.grey.shade600),
-                    SizedBox(width: 4),
-                    Text(
-                      'Señales Individuales',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                    ),
-                  ],
-                ),
               ],
             ),
           ],
