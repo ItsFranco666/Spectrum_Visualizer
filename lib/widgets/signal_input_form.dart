@@ -32,7 +32,7 @@ class SignalInputForm extends StatelessWidget {
                               decoration: InputDecoration(
                                 labelText: 'Número de señales',
                                 border: OutlineInputBorder(),
-                                // Updated helper text to show network limit
+                                // Se actualizó el texto auxiliar para mostrar el límite de la red
                                 helperText: 'Mínimo 3, máximo 10 señales',
                               ),
                               keyboardType: TextInputType.number,
@@ -47,7 +47,7 @@ class SignalInputForm extends StatelessWidget {
                           ),
                         ],
                       ),
-                      // Network limit validation warning
+                      // Limitacion de redes
                       if (provider.numberOfSignals >= 10)
                         Padding(
                           padding: EdgeInsets.only(top: 8),

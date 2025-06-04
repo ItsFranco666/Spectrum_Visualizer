@@ -50,7 +50,7 @@ class SpectrumChart extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SizedBox(height: 16),
-                    // Dynamic resizing: Use Expanded to fill available space
+                    //Cambio de tamaño dinámico: utilice Expandido para llenar el espacio disponible
                     Expanded(
                       child: SpectrumLineChart(data: provider.spectrumData!),
                     ),
@@ -77,7 +77,8 @@ class SpectrumLineChart extends StatefulWidget {
 }
 
 class _SpectrumLineChartState extends State<SpectrumLineChart> {
-  // Interactive features: Add pan and zoom control variables
+  // Añade el zoom y control de rango dinámico
+  // Variables para los límites del eje X e Y
   double _minX;
   double _maxX;
   double _minY;
@@ -180,14 +181,67 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
     return sortedFreqs;
   }
 
+  // Generar colores únicos para cada señal
+  Color _getSignalColor(int signalIndex) {
+    List<Color> colors = [
+      Colors.blue.shade600,
+      Colors.red.shade600,
+      Colors.green.shade600,
+      Colors.purple.shade600,
+      Colors.orange.shade600,
+      Colors.teal.shade600,
+      Colors.pink.shade600,
+      Colors.indigo.shade600,
+      Colors.amber.shade600,
+      Colors.cyan.shade600,
+    ];
+    return colors[signalIndex % colors.length];
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Crear puntos para el gráfico de línea continua
-    List<FlSpot> spots = _generateSpectrumCurve();
-    
     double noiseLevel = widget.data.thermalNoise;
     List<double> keyFrequencies = _getKeyFrequencies();
 
+    // Crear líneas para cada señal individual
+    List<LineChartBarData> signalLines = [];
+    
+    // Agregar líneas para cada señal individual
+    for (int i = 0; i < widget.data.signals.length; i++) {
+      var signal = widget.data.signals[i];
+      List<FlSpot> signalSpots = _generateSignalCurve(signal);
+      Color signalColor = _getSignalColor(i);
+      
+      signalLines.add(
+        LineChartBarData(
+          spots: signalSpots,
+          isCurved: true,
+          curveSmoothness: 0.3,
+          color: signalColor,
+          barWidth: 2.0,
+          isStrokeCapRound: true,
+          dotData: FlDotData(show: false),
+          belowBarData: BarAreaData(
+            show: true,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                signalColor.withAlpha((0.4 * 255).round()),
+                signalColor.withAlpha((0.2 * 255).round()),
+                signalColor.withAlpha((0.1 * 255).round()),
+                signalColor.withAlpha((0.05 * 255).round()),
+              ],
+              stops: [0.0, 0.4, 0.7, 1.0],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Crear puntos para el gráfico de espectro envolvente (máximo en cada frecuencia)
+    List<FlSpot> envelopeSpots = _generateSpectrumEnvelope();
+    
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
@@ -227,7 +281,7 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
             titlesData: FlTitlesData(
               show: true,
               bottomTitles: AxisTitles(
-                // Axis labels: Add x-axis label
+                // Añadir label de eje X
                 axisNameWidget: Padding(
                   padding: EdgeInsets.only(top: 8.0),
                   child: Text(
@@ -265,7 +319,7 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
                 ),
               ),
               leftTitles: AxisTitles(
-                // Axis labels: Add y-axis label
+                // Añadir label de eje Y
                 axisNameWidget: RotatedBox(
                   quarterTurns: 12,
                   child: Text(
@@ -304,36 +358,28 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
                 width: 1.5,
               ),
             ),
-            // Interactive features: Use dynamic bounds for pan/zoom
+            // Funciones interactivas: utilice límites dinámicos para desplazarse y hacer zoom
             minX: _minX,
             maxX: _maxX,
             minY: _minY,
             maxY: _maxY,
             lineBarsData: [
-              // Espectro principal
+              // Líneas individuales de cada señal
+              ...signalLines,
+              
+              // Espectro envolvente (línea punteada que muestra el máximo)
               LineChartBarData(
-                spots: spots,
+                spots: envelopeSpots,
                 isCurved: true,
                 curveSmoothness: 0.2,
-                color: Colors.blue.shade600,
-                barWidth: 2.5,
+                color: Colors.black.withAlpha((0.6 * 255).round()),
+                barWidth: 1.5,
                 isStrokeCapRound: true,
+                dashArray: [3, 3],
                 dotData: FlDotData(show: false),
-                belowBarData: BarAreaData(
-                  show: true,
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.blue.shade400.withAlpha((0.7 * 255).round()),
-                      Colors.blue.shade300.withAlpha((0.5 * 255).round()),
-                      Colors.blue.shade200.withAlpha((0.3 * 255).round()),
-                      Colors.blue.shade100.withAlpha((0.1 * 255).round()),
-                    ],
-                    stops: [0.0, 0.4, 0.7, 1.0],
-                  ),
-                ),
+                belowBarData: BarAreaData(show: false),
               ),
+              
               // Línea de ruido térmico
               LineChartBarData(
                 spots: [
@@ -355,57 +401,48 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
                 fitInsideVertically: true,
                 tooltipPadding: EdgeInsets.all(8),
                 tooltipBorderRadius: BorderRadius.circular(8),
-                maxContentWidth: 200,
+                maxContentWidth: 250,
                 getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
                   if (touchedBarSpots.isEmpty) return [];
                   
-                  return touchedBarSpots.map((barSpot) {
-                    // Solo procesar el primer punto tocado para evitar duplicaciones
-                    if (touchedBarSpots.indexOf(barSpot) > 0) {
-                      return null;
-                    }
+                  // Obtener información de todas las señales en el punto tocado
+                  double frequency = touchedBarSpots.first.x;
+                  List<String> signalInfos = [];
+                  
+                  for (int i = 0; i < widget.data.signals.length; i++) {
+                    var signal = widget.data.signals[i];
+                    double signalPower = _getSignalPower(frequency, signal);
                     
-                    // Encontrar la señal más cercana
-                    var closestSignal = widget.data.signals.first;
-                    double minDistance = double.infinity;
-                    
-                    for (var signal in widget.data.signals) {
-                      double distance = (signal.frequency - barSpot.x).abs();
-                      if (distance < minDistance) {
-                        minDistance = distance;
-                        closestSignal = signal;
-                      }
-                    }
-                    
-                    if (minDistance < closestSignal.bandwidth / 2) {
-                      final snr = widget.data.snrValues[closestSignal.id] ?? 0;
-                      return LineTooltipItem(
-                        'Señal ${closestSignal.id}\n'
-                        'Freq: ${closestSignal.frequency.toStringAsFixed(1)} MHz\n'
-                        'BW: ${closestSignal.bandwidth.toStringAsFixed(1)} MHz\n'
-                        'Potencia: ${closestSignal.power.toStringAsFixed(2)} dBm\n'
-                        'SNR: ${snr.toStringAsFixed(2)} dB',
-                        TextStyle(
-                          color: Colors.grey.shade800,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    if (signalPower > widget.data.thermalNoise) {
+                      final snr = widget.data.snrValues[signal.id] ?? 0;
+                      signalInfos.add(
+                        'S${signal.id}: ${signal.frequency.toStringAsFixed(1)}MHz '
+                        '(${signalPower.toStringAsFixed(2)}dBm, SNR:${snr.toStringAsFixed(1)}dB)'
                       );
                     }
-                    
-                    return LineTooltipItem(
-                      'Freq: ${barSpot.x.toStringAsFixed(1)} MHz\n'
-                      'Nivel: ${barSpot.y.toStringAsFixed(2)} dBm',
+                  }
+                  
+                  String tooltipText = 'Freq: ${frequency.toStringAsFixed(1)} MHz\n';
+                  if (signalInfos.isNotEmpty) {
+                    tooltipText += signalInfos.join('\n');
+                  } else {
+                    tooltipText += 'Solo ruido térmico';
+                  }
+                  
+                  return [
+                    LineTooltipItem(
+                      tooltipText,
                       TextStyle(
                         color: Colors.grey.shade800,
                         fontSize: 11,
+                        fontWeight: FontWeight.w500,
                       ),
-                    );
-                  }).where((item) => item != null).cast<LineTooltipItem>().toList();
+                    ),
+                  ];
                 },
               ),
             ),
-            // Interactive features: Enable pan and zoom gestures
+            // Funciones interactivas: Habilite gestos de panorámica y zoom
             clipData: FlClipData.all(),
           ),
         ),
@@ -413,11 +450,27 @@ class _SpectrumLineChartState extends State<SpectrumLineChart> {
     );
   }
 
-  List<FlSpot> _generateSpectrumCurve() {
+  // Generar curva para una señal individual
+  List<FlSpot> _generateSignalCurve(dynamic signal) {
     List<FlSpot> spots = [];
     double freqStart = widget.data.minFrequency - 20;
     double freqEnd = widget.data.maxFrequency + 20;
-    double step = (freqEnd - freqStart) / 300; // Más puntos para mejor resolución
+    double step = (freqEnd - freqStart) / 300;
+    
+    for (double freq = freqStart; freq <= freqEnd; freq += step) {
+      double signalPower = _getSignalPower(freq, signal);
+      spots.add(FlSpot(freq, signalPower));
+    }
+    
+    return spots;
+  }
+
+  // Generar espectro envolvente (máximo en cada frecuencia)
+  List<FlSpot> _generateSpectrumEnvelope() {
+    List<FlSpot> spots = [];
+    double freqStart = widget.data.minFrequency - 20;
+    double freqEnd = widget.data.maxFrequency + 20;
+    double step = (freqEnd - freqStart) / 300;
     
     for (double freq = freqStart; freq <= freqEnd; freq += step) {
       double maxPower = widget.data.thermalNoise; // Empezar con el nivel de ruido
@@ -469,6 +522,23 @@ class SpectrumInfo extends StatelessWidget {
   final SpectrumData data;
 
   const SpectrumInfo({super.key, required this.data});
+
+  // Generar colores únicos para cada señal (mismo método que en el chart)
+  Color _getSignalColor(int signalIndex) {
+    List<Color> colors = [
+      Colors.blue.shade600,
+      Colors.red.shade600,
+      Colors.green.shade600,
+      Colors.purple.shade600,
+      Colors.orange.shade600,
+      Colors.teal.shade600,
+      Colors.pink.shade600,
+      Colors.indigo.shade600,
+      Colors.amber.shade600,
+      Colors.cyan.shade600,
+    ];
+    return colors[signalIndex % colors.length];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -534,11 +604,22 @@ class SpectrumInfo extends StatelessWidget {
             SizedBox(height: 12),
             Divider(),
             SizedBox(height: 8),
-            Row(
+            // Leyenda mejorada con colores de cada señal
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
               children: [
-                _buildLegendItem(Colors.blue.shade600, 'Espectro de Potencia'),
-                SizedBox(width: 20),
-                _buildLegendItem(Colors.red.shade600, 'Ruido Térmico'),
+                // Señales individuales
+                ...data.signals.asMap().entries.map((entry) {
+                  int index = entry.key;
+                  var signal = entry.value;
+                  Color signalColor = _getSignalColor(index);
+                  return _buildLegendItem(signalColor, 'Señal ${signal.id}');
+                }).toList(),
+                // Espectro envolvente
+                _buildLegendItem(Colors.black.withAlpha((0.6 * 255).round()), 'Envolvente (máximo)', isDashed: true),
+                // Ruido térmico
+                _buildLegendItem(Colors.red.shade600, 'Ruido Térmico', isDashed: true),
               ],
             ),
           ],
@@ -599,7 +680,7 @@ class SpectrumInfo extends StatelessWidget {
     );
   }
 
-  Widget _buildLegendItem(Color color, String label) {
+  Widget _buildLegendItem(Color color, String label, {bool isDashed = false}) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -607,9 +688,15 @@ class SpectrumInfo extends StatelessWidget {
           width: 16,
           height: 3,
           decoration: BoxDecoration(
-            color: color,
+            color: isDashed ? Colors.transparent : color,
             borderRadius: BorderRadius.circular(2),
+            border: isDashed ? Border.all(color: color, width: 1) : null,
           ),
+          child: isDashed 
+            ? CustomPaint(
+                painter: DashedLinePainter(color: color),
+              )
+            : null,
         ),
         SizedBox(width: 6),
         Text(
@@ -619,4 +706,34 @@ class SpectrumInfo extends StatelessWidget {
       ],
     );
   }
+}
+
+// Pintor personalizado para líneas discontinuas en la leyenda
+class DashedLinePainter extends CustomPainter {
+  final Color color;
+  
+  DashedLinePainter({required this.color});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2;
+    
+    double dashWidth = 3;
+    double dashSpace = 2;
+    double startX = 0;
+    
+    while (startX < size.width) {
+      canvas.drawLine(
+        Offset(startX, size.height / 2),
+        Offset(math.min(startX + dashWidth, size.width), size.height / 2),
+        paint,
+      );
+      startX += dashWidth + dashSpace;
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

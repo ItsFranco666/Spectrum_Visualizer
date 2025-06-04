@@ -7,7 +7,7 @@ import '../models/spectrum_data.dart';
 
 class SpectrumProvider extends ChangeNotifier {
   static const double BOLTZMANN_CONSTANT = 1.38064852e-23; // J/K
-  static const int MAX_SIGNALS = 10; // Maximum number of signals allowed
+  static const int MAX_SIGNALS = 10; // Maximo de señales permitidas
   
   int _numberOfSignals = 3;
   List<Signal> _signals = [];
@@ -24,7 +24,7 @@ class SpectrumProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
 
   void setNumberOfSignals(int count) {
-    // Network limit validation: Ensure maximum of 10 networks
+    // Validación del límite de red: garantizar un máximo de 10 redes
     if (count < 3 || count > MAX_SIGNALS) return;
     _numberOfSignals = count;
     _initializeSignals();
@@ -160,7 +160,7 @@ class SpectrumProvider extends ChangeNotifier {
       if (configString != null) {
         Map<String, dynamic> config = jsonDecode(configString);
         int loadedSignals = config['numberOfSignals'] ?? 3;
-        // Apply network limit validation when loading
+        // Aplicar validación de límite de red al cargar
         _numberOfSignals = loadedSignals > MAX_SIGNALS ? MAX_SIGNALS : loadedSignals;
         _temperature = config['temperature'] ?? 290.0;
         _systemBandwidth = config['systemBandwidth'] ?? 100.0;

@@ -55,12 +55,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           SpectrumChart(),
         ],
       ),
-      // MODIFICATION: Interface adjustment - Hide calculate button in spectrum tab (requirement 2)
+      // Modificacion: Ajuste de interfaz - Esconde el boton de calculo en la pestaña de la grafica (requirement 2)
       floatingActionButton: Consumer<SpectrumProvider>(
         builder: (context, provider, child) {
-          // Only show calculate button in signals and system tabs, not in spectrum tab
+          // Solo mostrar el boton de calculo en la pestaña de señales y de configuracion del sistema, no en la pestaña de espectro
           if (_tabController.index == 2) {
-            return SizedBox.shrink(); // Completely hide button in spectrum tab
+            return SizedBox.shrink();
           }
           
           return FloatingActionButton.extended(

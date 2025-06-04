@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   # Updated chart library for visualization
-  fl_chart: ^1.2.0
+  fl_chart: 1.0.0
   # State management
   provider: ^6.1.1
   # Local storage for app configuration
